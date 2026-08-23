@@ -1,0 +1,14 @@
+{
+  "name": "pizzaboy-practice",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Speedrun practice tool for PizzaBoy (Construct 3 / WebView2) - savestates, boss warps, cutscene skip",
+  "type": "commonjs",
+  "bin": { "pbp": "src/cli.js" },
+  "scripts": {
+    "start": "node src/cli.js",
+    "probe": "node src/cli.js probe",
+    "unpack": "node tools/unpack-assets.js"
+  },
+  "engines": { "node": ">=22" }
+}
