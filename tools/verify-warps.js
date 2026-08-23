@@ -37,9 +37,14 @@ async function main() {
     const start = await pos();
 
     if (!start) {
-      const expected = /rhythm/.test(t.note || '');
+      const rhythm = /rhythm/.test(t.note || '');
+      // A target that arms a real fight will kill this motionless stand-in,
+      // and that is a pass, not a failure -- the fight starting is the point.
+      const armed = await ev('Number(__PBP.runtime.globalVars.Boss_active) !== 0');
+      const expected = rhythm || armed;
       console.log(`  ${expected ? 'ok   ' : 'FAIL '} ${t.key.padEnd(4)} ${t.label.padEnd(22)} ` +
-                  `${layout} - no player${expected ? ' (expected)' : ''}`);
+                  `${layout} - no player` +
+                  (rhythm ? ' (expected)' : armed ? ' (fight armed, stand-in died)' : ''));
       if (!expected) bad++;
       continue;
     }

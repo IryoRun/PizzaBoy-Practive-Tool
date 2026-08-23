@@ -64,8 +64,16 @@
         g.boss_key = 1;
       } },
 
+    // Onto the middle of the arena's three platforms, which are marked by
+    // WhoopieJump at x=3024, 3128 and 3232 (Whoopie is the clown). Landing
+    // here starts his intro on its own -- no door to walk through.
+    //
+    // This spot looked lethal for a long time because the player object is
+    // removed for the duration of the intro, and the probe read that as a
+    // death. It is not: watch for the fight arming, not for the player
+    // staying put.
     { key: 'ch2', label: 'Ch2 - Clown', layout: 'Chapter 2 - Circus',
-      landing: { x: 2960, y: 320 } },
+      landing: { x: 3128, y: 340 } },
 
     { key: 'ch3', label: 'Ch3 - Triton', layout: 'Chapter 3 - Boss' },
 
@@ -74,9 +82,11 @@
 
     { key: 'ch5', label: 'Ch5 - Dracula', layout: 'Chapter 5 -Boss' },
 
-    // Left of Tin, facing him. Closer in (x >= 3040) he kills you on arrival.
+    // Near the left end of the pit Tin fights in. The floor steps down
+    // between x=2990 (rim, y=976) and x=3020 (pit, y=1104), so anything left
+    // of 3020 leaves you up on the rim and out of the arena.
     { key: 'ch6', label: 'Ch6 - Tin', layout: 'Chapter 6 - Snow',
-      landing: { x: 3000, y: 700 } },
+      landing: { x: 3050, y: 700 } },
 
     // This one was right in the first version and only broke when later
     // "improvements" were applied to it. Back to the original spot.
@@ -174,6 +184,13 @@
     running = true;
     try {
       const rt = PBP.runtime;
+
+      // Boss_active is a global and survives the layout change, so warping
+      // from a chapter whose fight was running drops you into the next one
+      // mid-fight. Clear it before loading; layouts that arm their own fight
+      // do so on start, and Chapter 1 arms it by walking through the door.
+      try { rt.globalVars.Boss_active = 0; } catch (err) { PBP.warn('could not clear Boss_active:', err); }
+
       rt.goToLayout(target.layout);
 
       if (!await waitForLayout(target.layout)) {
