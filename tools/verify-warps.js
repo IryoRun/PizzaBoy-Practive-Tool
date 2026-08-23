@@ -71,7 +71,10 @@ async function main() {
     })()`);
     const dx = Math.round(Math.abs(view.sx - left[0]));
     const dy = Math.round(Math.abs(view.sy - left[1]));
-    const onScreen = dx < view.halfW * 0.8 && dy < view.halfH * 0.8;
+    // 0.9 of the half-extent: still on screen, just not centred. Tighter than
+    // this flags spots that play fine; looser misses the real failures, which
+    // were off by 200-800 with the camera stranded in another room.
+    const onScreen = dx < view.halfW * 0.9 && dy < view.halfH * 0.9;
 
     if (!free || !onScreen) bad++;
     const verdict = !free ? 'STUCK' : (!onScreen ? 'BLIND' : 'ok   ');

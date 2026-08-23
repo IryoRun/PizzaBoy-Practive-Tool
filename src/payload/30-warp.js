@@ -24,31 +24,37 @@
   const PBP = window.__PBP;
   if (!PBP) return;
 
-  // `Boss` is a family holding each chapter's boss, but it does not cover
-  // every layout, so each target also names its own object as a fallback.
+  // Each target says plainly what it does. Earlier versions derived landing
+  // spots from marker objects and room geometry; every such rule found a
+  // layout it was wrong about, and "clever" fixes kept breaking chapters that
+  // had been fine. These are measured positions, nothing inferred.
+  //
+  //   landing   - place the player here, then let gravity settle
+  //   (nothing) - the layout puts the player in the arena itself; leave it be
+  //   safeStart - arena landings are lethal; start at the nearest checkpoint
   const TARGETS = [
     { key: 'ch1', label: 'Ch1 - BamBam', layout: '1-VampireHouse',
-      boss: ['Boss', 'bambam'] },
+      landing: { x: 4160, y: 259 },
+      note: 'arena only - BamBam needs the switch trigger, not solved' },
+
     { key: 'ch2', label: 'Ch2 - Clown', layout: 'Chapter 2 - Circus',
-      boss: ['Boss', 'clown'], safeStart: true,
-      note: 'lands at the nearest checkpoint - set your own spot with Shift+F11' },
-    { key: 'ch3', label: 'Ch3 - Triton', layout: 'Chapter 3 - Boss',
-      boss: ['Boss', 'Triton'] },
+      landing: { x: 2960, y: 320 } },
+
+    { key: 'ch3', label: 'Ch3 - Triton', layout: 'Chapter 3 - Boss' },
+
     { key: 'ch4', label: 'Ch4 - Frank (rhythm)', layout: 'Chapter 4 - Boss',
       note: 'rhythm sequence - no player object by design' },
-    { key: 'ch5', label: 'Ch5 - Dracula', layout: 'Chapter 5 -Boss',
-      boss: ['Boss', 'Dracula'] },
-    { key: 'ch6', label: 'Ch6 - Tin', layout: 'Chapter 6 - Snow',
-      boss: ['Boss', 'Tin_Boss'], safeStart: true,
-      note: 'starts you at 1 HP by design - set your own spot with Shift+F11' },
-    { key: 'ch7', label: 'Ch7 - Dawg Mascot', layout: 'Chapter 7 -final',
-      boss: ['Boss', 'DawgMascot'], safeStart: true,
-      note: 'lands at the nearest checkpoint - set your own spot with Shift+F11' },
-  ];
 
-  // Stand a short step to the boss's left, dropped in from above it.
-  const APPROACH_DX = -100;
-  const DROP_ABOVE = 110;
+    { key: 'ch5', label: 'Ch5 - Dracula', layout: 'Chapter 5 -Boss' },
+
+    { key: 'ch6', label: 'Ch6 - Tin', layout: 'Chapter 6 - Snow',
+      landing: { x: 2896, y: 724 } },
+
+    // This one was right in the first version and only broke when later
+    // "improvements" were applied to it. Back to the original spot.
+    { key: 'ch7', label: 'Ch7 - Dawg Mascot', layout: 'Chapter 7 -final',
+      landing: { x: 3600, y: 4576 } },
+  ];
 
   const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
   let running = false;
@@ -132,11 +138,15 @@
         player.y = custom.y;
         await settle(30);
         moved = [Math.round(player.x), Math.round(player.y)];
+      } else if (player && target.landing) {
+        player.x = target.landing.x;
+        player.y = target.landing.y;
+        await settle(50);   // fall to the arena floor
+        moved = [Math.round(player.x), Math.round(player.y)];
       } else if (player && target.safeStart) {
-        // Arenas where dropping in beside the boss kills you outright -- a pit
-        // under the landing spot, or a section that starts you at 1 HP. Until
-        // someone records a real spot with Shift+F11, put them somewhere the
-        // level guarantees is survivable and let them walk the last stretch.
+        // Arena landings here are lethal -- a pit under the floor. Until
+        // someone records a real spot with Shift+F11, start somewhere the
+        // level guarantees is survivable.
         const cp = nearestCheckpoint(findBoss(target) || player);
         if (cp) {
           player.x = cp.x;
@@ -144,23 +154,15 @@
           await settle(30);
           moved = [Math.round(player.x), Math.round(player.y)];
         }
-      } else if (player && target.boss) {
-        const boss = findBoss(target);
-        if (boss) {
-          player.x = boss.x + APPROACH_DX;
-          player.y = boss.y - DROP_ABOVE;
-          await settle(50);   // fall to the arena floor
-          moved = [Math.round(player.x), Math.round(player.y)];
-        } else {
-          PBP.warn(`warp ${target.key}: none of [${target.boss}] is on this layout`);
-        }
       }
-
-      // Arm the fight. The boss is already standing in its arena; this is the
-      // flag the skipped quest chain would otherwise have set.
-      if (target.boss) {
-        try { rt.globalVars.Boss_active = 1; } catch (err) { PBP.warn('could not set Boss_active:', err); }
-      }
+      // Targets with neither field are dedicated arenas: the layout already
+      // places the player and arms the fight. Touching those broke Chapter 5
+      // (the player landed, then got flung into the air), so leave them alone.
+      //
+      // Boss_active is deliberately not forced. It does start a fight, but on
+      // Chapter 1 it produces a BamBam that never initialises properly --
+      // invisible and half-loaded -- because the switch trigger does more than
+      // set the flag.
 
       PBP.emit('warp:done', { key: target.key, label: target.label, layout: target.layout, moved, note: target.note });
       PBP.log(`warped to ${target.label}` + (moved ? ` @${moved}` : ''));

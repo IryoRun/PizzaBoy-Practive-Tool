@@ -218,13 +218,13 @@ dich zum Boss stellen. Denn die Kapitel sind unterschiedlich gebaut:
 
 | Ziel | Layout | Vorgehen |
 | --- | --- | --- |
-| Kap. 1 – BamBam | `1-VampireHouse` | **landet neben dem Boss, Kampf startet** |
-| Kap. 2 – Clown | `Chapter 2 - Circus` | sicherer Start; Arena-Landung ist eine Grube |
-| Kap. 3 – Triton | `Chapter 3 - Boss` | **eigene Arena, Kampf startet** |
+| Kap. 1 – BamBam | `1-VampireHouse` | landet in der Arena; **Kampf startet nicht** |
+| Kap. 2 – Clown | `Chapter 2 - Circus` | landet nahe der Bosstür |
+| Kap. 3 – Triton | `Chapter 3 - Boss` | eigene Arena, unangetastet |
 | Kap. 4 – Frank | `Chapter 4 - Boss` | Rhythmus-Sequenz; bewusst ohne `Player`-Objekt |
-| Kap. 5 – Dracula | `Chapter 5 -Boss` | **eigene Arena, Kampf startet** |
-| Kap. 6 – Tin | `Chapter 6 - Snow` | sicherer Start; Abschnitt läuft mit 1 HP |
-| Kap. 7 – Dawg Mascot | `Chapter 7 -final` | sicherer Start; Arena-Landung ist tödlich |
+| Kap. 5 – Dracula | `Chapter 5 -Boss` | eigene Arena, unangetastet |
+| Kap. 6 – Tin | `Chapter 6 - Snow` | landet Tin gegenüber |
+| Kap. 7 – Dawg Mascot | `Chapter 7 -final` | landet an der Bosstür |
 
 **Wo man landet.** Die erste Fassung zielte auf die Bosstür und hat die Figur
 in Kapitel 1, 2 und 6 in Wänden festgesetzt. Zwei Dinge waren falsch, und beide
@@ -239,29 +239,24 @@ sollte man kennen, bevor man an diesen Werten dreht:
   man 16 px über der Oberkante (also auf dem Dach), bleibt die Kamera im
   vorigen Raum und zeigt Kulisse, während man woanders steht.
 
-**Wie der Kampf startet.** Jedes Layout trägt seinen Boss in einer
-`Boss`-Familie (plus benanntes Objekt, wo die Familie nicht hinreicht) — schon
-fertig in der Arena, sobald das Layout lädt. BamBam steht bei (4264,368), lange
-bevor man dort ankommt. Es fehlt nur `Boss_active`. Der Warp setzt die Figur
-also neben den Boss und schaltet das Flag, das die übersprungene Questkette
-gesetzt hätte: BamBam wecken, Schalter für die pinken Blöcke drücken, Knochen
-einsammeln, bei Pupperoni gegen den Schlüssel tauschen, Tür öffnen.
+**Den Kampf zu starten ist ungelöst.** Jedes Layout trägt seinen Boss fertig in
+der Arena — BamBam steht bei (4264,368), sobald das Level lädt — und das Setzen
+von `Boss_active` bringt ihn auch zum Angreifen. Es reicht aber nicht: So
+initialisiert sich BamBam nie richtig und bleibt unsichtbar, weil der Schalter
+für die pinken Blöcke mehr tut als ein Flag zu setzen. Die echte Kette ist
+BamBam wecken, Schalter drücken, Knochen holen, bei Pupperoni gegen den
+Schlüssel tauschen, Tür öffnen — und nur das letzte Glied davon ist ein Global.
 
-Eine frühere Fehldeutung, die festgehalten gehört: Das Setzen von `Boss_active`
-sah zunächst nach kaputtem Zustand aus, weil die Health sank, während die Figur
-stillstand. Das war kein Fehler — das war der Boss, der eine reglose Figur traf.
-Der Kampf lief die ganze Zeit.
+Die Warps setzen dich deshalb in die Arena und lassen `Boss_active` in Ruhe.
+Einen korrekt initialisierten Boss aus einem kalten Warp zu bekommen, ist noch
+offen.
 
-Kapitel 1, 3 und 5 setzen die Figur deshalb links neben den Boss und lassen die
-Schwerkraft den Arenaboden finden — am laufenden Spiel geprüft, Kampf inklusive.
-
-Kapitel 2, 6 und 7 sind **nicht gelöst**. Jede Landung neben diesen Bossen ist
-tödlich: unter dem Boden liegt bei 2 und 7 eine Grube, und Kapitel 6 läuft den
-ganzen Abschnitt über mit 1 HP, da endet jede Berührung. Statt dich in den Tod
-zu warpen, starten diese drei am nächsten Checkpoint mit bereits scharfem
-Kampf und sagen das im Menü dazu. Das letzte Stück zu laufen ist nicht die
-Absicht — `Shift+F11` ist die Lösung: hinstellen, wo der Kampf beginnen soll,
-Taste drücken.
+Zwei Fehler stehen hier, weil beide echte Zeit gekostet haben: `Boss_active` zu
+setzen sah zunächst nach Erfolg aus, weil die Health einer reglosen Figur sank
+— das war der Boss, der traf, kein kaputter Zustand. Und dieser „Fix" wurde
+dann auch auf Kapitel 3, 5 und 7 angewandt, die vorher in Ordnung waren, und
+hat sie zerschossen: Kapitel 5 warf die Figur nach der Landung in die Luft.
+**Keinen kapitelspezifischen Fix auf Kapitel anwenden, die schon laufen.**
 
 Zwei Werkzeuge halten das ehrlich — beide brauchen ein laufendes Spiel mit
 verbundenem Tool:
