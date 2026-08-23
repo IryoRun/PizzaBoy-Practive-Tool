@@ -40,8 +40,29 @@
 .pbp-slot.sel { color: #e8b03a; }
 .pbp-slot .n { width: 2ch; text-align: right; }
 .pbp-slot .l { min-width: 22ch; }
-#pbp-hint { position: absolute; right: 16px; bottom: 16px; font-size: 12px;
-  opacity: .5; background: rgba(18,16,22,.75); padding: 4px 9px; border-radius: 3px; }
+#pbp-hint {
+  position: absolute; right: 16px; bottom: 16px; font-size: 13px;
+  background: rgba(18,16,22,.85); border: 1px solid rgba(232,176,58,.45);
+  padding: 5px 11px; border-radius: 3px; letter-spacing: .02em;
+  transition: opacity .15s ease-out;
+}
+#pbp-hint .key { color: #e8b03a; font-weight: 700; }
+#pbp-hint.dim { opacity: 0; }
+#pbp-keys {
+  position: absolute; right: 16px; bottom: 52px; display: none;
+  background: rgba(18,16,22,.96); border: 1px solid rgba(232,176,58,.6);
+  border-radius: 5px; padding: 14px 18px; font-size: 14px; min-width: 34ch;
+}
+#pbp-keys.show { display: block; }
+#pbp-keys h4 { margin: 0 0 9px; font-size: 12px; letter-spacing: .13em;
+  text-transform: uppercase; color: #e8b03a; font-weight: 700; }
+#pbp-keys .grp { margin: 11px 0 4px; font-size: 11px; letter-spacing: .11em;
+  text-transform: uppercase; opacity: .5; }
+#pbp-keys .grp:first-of-type { margin-top: 0; }
+#pbp-keys .row { display: flex; gap: 14px; padding: 2px 0; }
+#pbp-keys .row .k { color: #e8b03a; min-width: 11ch; white-space: nowrap; }
+#pbp-keys .foot { margin-top: 12px; padding-top: 9px; font-size: 12px; opacity: .5;
+  border-top: 1px solid rgba(255,255,255,.14); }
 #pbp-bosses {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   background: rgba(18,16,22,.96); border: 1px solid rgba(232,176,58,.6);
@@ -63,7 +84,7 @@
 #pbp-turbo.show { display: block; }
 `;
 
-  let root, toastBox, slotBox, hintBox, bossBox, turboBox;
+  let root, toastBox, slotBox, hintBox, bossBox, turboBox, keysBox;
 
   function build() {
     if (root) return;
@@ -79,13 +100,26 @@
       '<div id="pbp-bosses"><h4>Warp to boss</h4><div class="rows"></div>' +
       '<div class="foot">press a number, Esc to close</div></div>' +
       '<div id="pbp-turbo"></div>' +
-      '<div id="pbp-hint">F1 help</div>';
+      '<div id="pbp-keys"><h4>Hotkeys</h4><div class="rows"></div>' +
+      '<div class="foot">F1 or Esc to close</div></div>' +
+      '<div id="pbp-hint"><span class="key">F1</span> for Hotkeys</div>';
     document.body.appendChild(root);
     toastBox = root.querySelector('#pbp-toasts');
     slotBox = root.querySelector('#pbp-slots');
     bossBox = root.querySelector('#pbp-bosses');
     turboBox = root.querySelector('#pbp-turbo');
+    keysBox = root.querySelector('#pbp-keys');
     hintBox = root.querySelector('#pbp-hint');
+  }
+
+  function renderKeys() {
+    if (!keysBox) return;
+    const entries = (PBP.hotkeys && PBP.hotkeys.list) || [];
+    keysBox.querySelector('.rows').innerHTML = entries.map((e) => e.group
+      ? `<div class="grp">${escapeHtml(e.group)}</div>`
+      : `<div class="row"><span class="k">${escapeHtml(e.keys)}</span>` +
+        `<span class="d">${escapeHtml(e.desc)}</span></div>`
+    ).join('');
   }
 
   function renderBosses() {
@@ -147,22 +181,51 @@
       if (on) renderSlots();
     },
     refresh: renderSlots,
-    setHint(text) { build(); hintBox.textContent = text; },
     toggleBosses() {
       build();
       renderBosses();
+      keysBox.classList.remove('show');   // one panel at a time
       bossBox.classList.toggle('show');
+      syncHint();
       return bossBox.classList.contains('show');
     },
-    closeBosses() { if (bossBox) bossBox.classList.remove('show'); },
+    closeBosses() { if (bossBox) { bossBox.classList.remove('show'); syncHint(); } },
     bossMenuOpen() { return !!bossBox && bossBox.classList.contains('show'); },
+
+    toggleKeys() {
+      build();
+      renderKeys();
+      bossBox.classList.remove('show');
+      keysBox.classList.toggle('show');
+      syncHint();
+      return keysBox.classList.contains('show');
+    },
+    keysOpen() { return !!keysBox && keysBox.classList.contains('show'); },
+
+    anyPanelOpen() {
+      return (!!keysBox && keysBox.classList.contains('show'))
+        || (!!bossBox && bossBox.classList.contains('show'))
+        || (!!slotBox && slotBox.classList.contains('show'));
+    },
+    closePanels() {
+      if (keysBox) keysBox.classList.remove('show');
+      if (bossBox) bossBox.classList.remove('show');
+      if (slotBox) slotBox.classList.remove('show');
+      syncHint();
+    },
   };
+
+  /** The nudge is only useful until you have found the list. */
+  function syncHint() {
+    if (!hintBox) return;
+    hintBox.classList.toggle('dim', keysBox.classList.contains('show'));
+  }
 
   PBP.overlay = overlay;
 
   PBP.onStart(() => {
     build();
-    toast('Practice tool ready - F1 for help', 'ok', 3000);
+    toast('Practice tool ready - press F1 for the hotkey list', 'ok', 3500);
   });
 
   PBP.on('state:saved', (m) => { toast(`Slot ${m.slot} saved - ${m.layout}`, 'ok'); renderSlots(); });

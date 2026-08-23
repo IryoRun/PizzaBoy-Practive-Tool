@@ -9,21 +9,31 @@
 
   const state = { slot: 0 };
 
-  const HELP = [
-    'F1        this help',
-    'F2        slot panel on/off',
-    'F3 (hold) fast-forward through unplayable bits',
-    'Shift+F3  cycle speed 2x / 4x / 8x / 16x',
-    'F5        save state to selected slot',
-    'F8        load selected slot',
-    'Shift+F8  clear selected slot',
-    'F6 / F7   previous / next slot',
-    '0-9 +Alt  jump to slot',
-    'F9        skip the running cutscene',
-    'F10       auto-skip cutscenes on/off',
-    'F11       warp-to-boss menu',
-    'Shift+F11 set this spot as the warp point',
-  ].join('\n');
+  // The single source of truth for the on-screen list, so the panel can never
+  // drift from what the keys actually do.
+  const HOTKEYS = [
+    { group: 'General' },
+    { keys: 'F1', desc: 'show / hide this list' },
+    { keys: 'Esc', desc: 'close any open panel' },
+
+    { group: 'Savestates' },
+    { keys: 'F5', desc: 'save state to the selected slot' },
+    { keys: 'F8', desc: 'load the selected slot' },
+    { keys: 'Shift + F8', desc: 'clear the selected slot' },
+    { keys: 'F6 / F7', desc: 'previous / next slot' },
+    { keys: 'Alt + 0…9', desc: 'jump straight to a slot' },
+    { keys: 'F2', desc: 'show / hide the slot panel' },
+
+    { group: 'Skipping' },
+    { keys: 'F3 (hold)', desc: 'fast-forward through unplayable stretches' },
+    { keys: 'Shift + F3', desc: 'cycle speed 2× / 4× / 8× / 16×' },
+    { keys: 'F9', desc: 'skip the running dialogue' },
+    { keys: 'F10', desc: 'auto-skip dialogue on / off' },
+
+    { group: 'Boss warps' },
+    { keys: 'F11', desc: 'warp menu, then a number' },
+    { keys: 'Shift + F11', desc: 'set this spot as the warp point' },
+  ];
 
   function selectSlot(n) {
     state.slot = ((n % PBP.states.SLOT_COUNT) + PBP.states.SLOT_COUNT) % PBP.states.SLOT_COUNT;
@@ -36,7 +46,7 @@
 
   const bindings = {
     F1() {
-      if (PBP.overlay) PBP.overlay.toast(HELP, null, 6000);
+      if (PBP.overlay) PBP.overlay.toggleKeys();
     },
     F2() {
       if (PBP.overlay) PBP.overlay.toggleSlots();
@@ -65,6 +75,13 @@
   };
 
   function onKeyDown(ev) {
+    // Escape closes whatever panel is open, before anything else looks at it.
+    if (ev.key === 'Escape' && PBP.overlay && PBP.overlay.anyPanelOpen()) {
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      PBP.overlay.closePanels();
+      return;
+    }
+
     // While the boss menu is open it owns the digit keys and Escape.
     if (PBP.overlay && PBP.overlay.bossMenuOpen()) {
       if (ev.key === 'Escape') {
@@ -110,7 +127,7 @@
   PBP.hotkeys = {
     get slot() { return state.slot; },
     select: selectSlot,
-    help: HELP,
+    list: HOTKEYS,
     bindings: Object.keys(bindings),
   };
 })();

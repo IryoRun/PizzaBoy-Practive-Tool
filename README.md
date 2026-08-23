@@ -33,7 +33,8 @@ From a checkout, `npm start` does the same thing.
 
 | Key | Action |
 | --- | --- |
-| `F1` | show help |
+| `F1` | show / hide the hotkey list |
+| `Esc` | close any open panel |
 | `F2` | toggle the savestate panel |
 | `F3` (hold) | fast-forward through unplayable stretches |
 | `Shift+F3` | cycle speed 2× / 4× / 8× / 16× |
@@ -47,9 +48,15 @@ From a checkout, `npm start` does the same thing.
 | `F11` | warp-to-boss menu (then a number, Esc to close) |
 | `Shift+F11` | set the current spot as this boss's warp point |
 
+A small badge sits in the bottom-right corner of the game reading
+**`F1` for Hotkeys**, so the keys are discoverable without reading this file.
+`F1` opens the full list, grouped by what it does; the badge fades out while
+the list is up.
+
 Function keys are used deliberately: the game binds letters and arrows, so
 nothing here collides with play. Hotkeys are captured before the game's
-keyboard handler sees them.
+keyboard handler sees them, and the list is generated from the actual key
+bindings so it cannot drift out of date.
 
 ### Commands
 

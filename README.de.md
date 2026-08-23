@@ -37,7 +37,8 @@ Aus einem Checkout heraus macht `npm start` dasselbe.
 
 | Taste | Funktion |
 | --- | --- |
-| `F1` | Hilfe anzeigen |
+| `F1` | Hotkey-Liste ein/aus |
+| `Esc` | offenes Panel schließen |
 | `F2` | Savestate-Panel ein/aus |
 | `F3` (halten) | Zeitraffer durch unspielbare Passagen |
 | `Shift+F3` | Geschwindigkeit durchschalten: 2× / 4× / 8× / 16× |
@@ -51,9 +52,15 @@ Aus einem Checkout heraus macht `npm start` dasselbe.
 | `F11` | Boss-Warp-Menü (dann Zahl drücken, Esc schließt) |
 | `Shift+F11` | Aktuelle Position als Warp-Punkt dieses Bosses setzen |
 
+Unten rechts im Spiel schwebt ein kleines Feld mit **`F1` for Hotkeys** — man
+muss also nicht erst diese Datei lesen, um die Tasten zu finden. `F1` öffnet
+die vollständige Liste, nach Zweck gruppiert; das Feld blendet sich aus,
+solange die Liste offen ist.
+
 Bewusst nur F-Tasten: Das Spiel belegt Buchstaben und Pfeiltasten, so kollidiert
 nichts. Die Tastendrücke werden abgefangen, bevor die Tastaturbehandlung des
-Spiels sie sieht.
+Spiels sie sieht, und die Liste wird aus den tatsächlichen Bindings erzeugt —
+sie kann also nicht veralten.
 
 ### Kommandos
 
