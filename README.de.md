@@ -218,13 +218,13 @@ dich zum Boss stellen. Denn die Kapitel sind unterschiedlich gebaut:
 
 | Ziel | Layout | Vorgehen |
 | --- | --- | --- |
-| Kap. 1 – BamBam | `1-VampireHouse` | landet in der Arena; **Kampf startet nicht** |
-| Kap. 2 – Clown | `Chapter 2 - Circus` | landet nahe der Bosstür |
+| Kap. 1 – BamBam | `1-VampireHouse` | Questzustand gesetzt, läuft durch die Tür, Kampf startet |
+| Kap. 2 – Clown | `Chapter 2 - Circus` | mittlere Plattform; Whoopies Intro startet |
 | Kap. 3 – Triton | `Chapter 3 - Boss` | eigene Arena, unangetastet |
 | Kap. 4 – Frank | `Chapter 4 - Boss` | Rhythmus-Sequenz; bewusst ohne `Player`-Objekt |
 | Kap. 5 – Dracula | `Chapter 5 -Boss` | eigene Arena, unangetastet |
-| Kap. 6 – Tin | `Chapter 6 - Snow` | landet Tin gegenüber |
-| Kap. 7 – Dawg Mascot | `Chapter 7 -final` | landet an der Bosstür |
+| Kap. 6 – Tin | `Chapter 6 - Snow` | im Loch, links von Tin |
+| Kap. 7 – Dawg Mascot | `Chapter 7 -final` | an der Bosstür |
 
 **Wo man landet.** Die erste Fassung zielte auf die Bosstür und hat die Figur
 in Kapitel 1, 2 und 6 in Wänden festgesetzt. Zwei Dinge waren falsch, und beide
@@ -239,24 +239,39 @@ sollte man kennen, bevor man an diesen Werten dreht:
   man 16 px über der Oberkante (also auf dem Dach), bleibt die Kamera im
   vorigen Raum und zeigt Kulisse, während man woanders steht.
 
-**Den Kampf zu starten ist ungelöst.** Jedes Layout trägt seinen Boss fertig in
-der Arena — BamBam steht bei (4264,368), sobald das Level lädt — und das Setzen
-von `Boss_active` bringt ihn auch zum Angreifen. Es reicht aber nicht: So
-initialisiert sich BamBam nie richtig und bleibt unsichtbar, weil der Schalter
-für die pinken Blöcke mehr tut als ein Flag zu setzen. Die echte Kette ist
-BamBam wecken, Schalter drücken, Knochen holen, bei Pupperoni gegen den
-Schlüssel tauschen, Tür öffnen — und nur das letzte Glied davon ist ein Global.
+**Wie der Kampf startet.** `Boss_active` zu setzen allein genügt nicht — der
+Boss greift zwar an, überspringt aber seine Initialisierung, und BamBam bleibt
+unsichtbar mit aktiver Hitbox. Jedes Kapitel braucht den Zustand, den seine
+Questkette hinterlassen hätte, und dann das, was den Kampf tatsächlich scharf
+schaltet:
 
-Die Warps setzen dich deshalb in die Arena und lassen `Boss_active` in Ruhe.
-Einen korrekt initialisierten Boss aus einem kalten Warp zu bekommen, ist noch
-offen.
+- **Kapitel 1** hat einen `prepare`-Schritt, der den Starbutton bei (3184,512)
+  nachbaut: `Star_SwitchBlock` auf true, die vier `StarBlock` zerstören, dazu
+  `boss_key` an Pupperonis Stelle. Bewusst *nicht* dabei: `bamsleep`
+  zerstören — das macht das Spiel selbst, und es von Hand zu tun war der Grund
+  für den halb geweckten BamBam. Scharf wird der Kampf durch das Durchlaufen
+  der Bosstür, was kein Teleport ersetzt; der Warp landet deshalb im Gang und
+  läuft mit synthetischen Tastenereignissen hinein.
+- **Kapitel 2** braucht nur die Landung: Das Aufsetzen auf der mittleren
+  Plattform startet Whoopies Intro von selbst.
 
-Zwei Fehler stehen hier, weil beide echte Zeit gekostet haben: `Boss_active` zu
-setzen sah zunächst nach Erfolg aus, weil die Health einer reglosen Figur sank
-— das war der Boss, der traf, kein kaputter Zustand. Und dieser „Fix" wurde
-dann auch auf Kapitel 3, 5 und 7 angewandt, die vorher in Ordnung waren, und
-hat sie zerschossen: Kapitel 5 warf die Figur nach der Landung in die Luft.
-**Keinen kapitelspezifischen Fix auf Kapitel anwenden, die schon laufen.**
+`Boss_active` wird außerdem vor jedem Warp zurückgesetzt. Es ist ein Global und
+überlebt Layoutwechsel — aus einem laufenden Kampf heraus startete das nächste
+Kapitel sonst schon in Stage 1.
+
+Drei Fehler stehen hier, weil jeder echte Zeit gekostet hat:
+
+1. `Boss_active` zu setzen sah nach Erfolg aus, weil die Health einer reglosen
+   Figur sank. Das war der Boss, der eine untätige Zielscheibe traf.
+2. Dieser „Fix" wurde dann auf Kapitel 3, 5 und 7 angewandt, die vorher in
+   Ordnung waren, und hat sie zerschossen — Kapitel 5 warf die Figur nach der
+   Landung in die Luft. **Keinen kapitelspezifischen Fix auf Kapitel anwenden,
+   die schon laufen.**
+3. Die Suche wertet eine fehlende Spielfigur als Tod, und Kapitel 1 und 2
+   entfernen die Figur für die Dauer des Boss-Intros. Das hat die richtige
+   Landung in Kapitel 2 stundenlang als tödlich verworfen. **Auf das
+   Scharfschalten des Kampfes achten, nicht darauf, ob die Figur stehen
+   bleibt.**
 
 Zwei Werkzeuge halten das ehrlich — beide brauchen ein laufendes Spiel mit
 verbundenem Tool:

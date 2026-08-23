@@ -209,32 +209,44 @@ you at the boss, because the chapters differ in shape:
 
 | Target | Layout | How it works |
 | --- | --- | --- |
-| Ch1 – BamBam | `1-VampireHouse` | lands in the arena; **fight does not start** |
-| Ch2 – Clown | `Chapter 2 - Circus` | lands near the boss door |
+| Ch1 – BamBam | `1-VampireHouse` | quest state set, walks the door, fight starts |
+| Ch2 – Clown | `Chapter 2 - Circus` | middle platform; Whoopie's intro starts |
 | Ch3 – Triton | `Chapter 3 - Boss` | dedicated arena, untouched |
 | Ch4 – Frank | `Chapter 4 - Boss` | rhythm sequence; no `Player` object by design |
 | Ch5 – Dracula | `Chapter 5 -Boss` | dedicated arena, untouched |
-| Ch6 – Tin | `Chapter 6 - Snow` | lands across the arena from Tin |
-| Ch7 – Dawg Mascot | `Chapter 7 -final` | lands at the boss door |
+| Ch6 – Tin | `Chapter 6 - Snow` | in the pit, left of Tin |
+| Ch7 – Dawg Mascot | `Chapter 7 -final` | at the boss door |
 
-**Starting the fight is unsolved.** Each layout carries its boss already
-instantiated in the arena — Chapter 1's BamBam stands at (4264,368) from the
-moment the level loads — and setting the `Boss_active` global does make him
-attack. But it is not enough: BamBam never initialises properly that way and
-stays invisible, because the switch that flips the pink blocks does more than
-set a flag. The real chain is wake BamBam, hit the switch, collect the bone,
-trade it to Pupperoni for the key, unlock the door, and only the last link of
-that is a global.
+**Starting the fight.** Forcing `Boss_active` is not enough on its own — it
+makes the boss attack but skips its initialisation, leaving Chapter 1's BamBam
+invisible with a live hitbox. Each chapter needs the state its quest would
+have left behind, and then the thing that actually arms the fight:
 
-So warps place you in the arena and leave `Boss_active` alone. Getting a
-correctly initialised boss out of a cold warp still needs work.
+- **Chapter 1** has a `prepare` step that reproduces the Starbutton at
+  (3184,512) — `Star_SwitchBlock` goes true and the four `StarBlock`s are
+  destroyed — plus `boss_key` in Pupperoni's place. Deliberately it does *not*
+  destroy `bamsleep`: the game removes that itself in response, and doing it
+  by hand is what left BamBam half-woken. The fight then arms by walking
+  through the boss door, which no teleport substitutes for, so the warp lands
+  in the corridor and walks in with synthetic key events.
+- **Chapter 2** just needs the landing: touching down on the middle platform
+  starts Whoopie's intro by itself.
 
-Two mistakes are recorded here because both cost real time. Setting
-`Boss_active` looked at first like it *had* worked — health ticked down on a
-motionless player, which was the boss hitting an idle target, not a corrupt
-state. And the fix for it was then applied to Chapters 3, 5 and 7, which had
-been fine, and broke them: Chapter 5 flung the player into the air after
-landing. **Do not apply a per-chapter fix to chapters that already work.**
+`Boss_active` is also cleared before every warp. It is a global that survives
+layout changes, so leaving a running fight used to start the next chapter
+already in stage 1.
+
+Three mistakes are recorded here because each cost real time:
+
+1. Setting `Boss_active` looked like it had worked, because health ticked down
+   on a motionless player. That was the boss hitting an idle target.
+2. That "fix" was then applied to Chapters 3, 5 and 7, which had been fine,
+   and broke them — Chapter 5 flung the player into the air after landing.
+   **Do not apply a per-chapter fix to chapters that already work.**
+3. The probe treats a missing player as a death, and both Chapter 1 and
+   Chapter 2 remove the player for the length of the boss intro. That marked
+   the correct Chapter 2 landing as lethal for hours. **Watch for the fight
+   arming, not for the player staying put.**
 
 **Where you land.** The first version aimed at the boss door marker and wedged
 the player inside walls on Chapters 1, 2 and 6. Two things were wrong, and both
@@ -252,12 +264,16 @@ are worth knowing before touching these offsets:
 Landing spots are therefore **measured constants**, not derived at runtime.
 Every rule tried — nearest marker, nearest checkpoint, search the room grid —
 found a layout it was wrong about, and each new rule broke a chapter that had
-been working. The positions in `TARGETS` were each confirmed in the game with
-`tools/verify-warps.js`; change them by measuring, not by reasoning.
+been working. Change them by measuring, not by reasoning.
 
 Chapters 3 and 5 get no repositioning at all. Their layouts already place the
 player in the arena, and interfering is what made Chapter 5 fling the player
 into the air after landing.
+
+Useful landmarks found along the way: Chapter 2's three platforms are marked
+by `WhoopieJump` at x=3024, 3128 and 3232. Chapter 6's floor steps down
+between x=2990 (rim, y=976) and x=3020 (pit, y=1104), which is the difference
+between standing above the arena and standing in it.
 
 Two tools keep this honest, both needing the game running with the tool
 attached:
