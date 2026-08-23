@@ -51,11 +51,14 @@
       walkIn: { code: 'ArrowRight', keyCode: 39 },
       prepare(rt) {
         const g = rt.globalVars;
+        // Flip the switch and clear the blocks -- and stop there. The game
+        // removes bamsleep itself in response, and letting it do so is what
+        // keeps BamBam properly initialised. Destroying bamsleep by hand
+        // skipped his wake-up and left him able to hit you while invisible,
+        // before the fight had started.
         g.Star_SwitchBlock = true;
-        for (const name of ['StarBlock', 'bamsleep']) {
-          const ot = rt.objects[name];
-          if (ot) for (const inst of ot.getAllInstances().slice()) inst.destroy();
-        }
+        const blocks = rt.objects.StarBlock;
+        if (blocks) for (const inst of blocks.getAllInstances().slice()) inst.destroy();
         const btn = rt.objects.Starbutton && rt.objects.Starbutton.getFirstInstance();
         if (btn) { try { btn.setAnimation('2'); } catch (err) { /* cosmetic only */ } }
         g.boss_key = 1;
