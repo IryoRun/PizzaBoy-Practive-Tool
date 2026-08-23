@@ -33,9 +33,33 @@
   //   (nothing) - the layout puts the player in the arena itself; leave it be
   //   safeStart - arena landings are lethal; start at the nearest checkpoint
   const TARGETS = [
+    // Chapter 1 gates the fight behind a quest, and BamBam only initialises
+    // properly once it is done -- forcing Boss_active alone leaves him
+    // invisible and half-loaded. `prepare` reproduces exactly what pressing
+    // the Starbutton does, measured by watching the real thing happen:
+    // Star_SwitchBlock flips true, all four StarBlocks vanish, and bamsleep
+    // (BamBam dozing elsewhere in the level) is destroyed. Handing over
+    // boss_key stands in for Pupperoni's half of it. With that state in place
+    // the game starts the fight by itself the moment you reach the arena.
+    // The fight will not start from a teleport into the arena, however the
+    // level state is set up: the game arms it when the player *crosses the
+    // boss door*. So land in the corridor outside and walk in, which is also
+    // what makes the arena lock behind you (Bosslock 2 -> 4) and plays the
+    // intro, exactly as in a real run.
     { key: 'ch1', label: 'Ch1 - BamBam', layout: '1-VampireHouse',
-      landing: { x: 4160, y: 259 },
-      note: 'arena only - BamBam needs the switch trigger, not solved' },
+      landing: { x: 3864, y: 330 },
+      walkIn: { code: 'ArrowRight', keyCode: 39 },
+      prepare(rt) {
+        const g = rt.globalVars;
+        g.Star_SwitchBlock = true;
+        for (const name of ['StarBlock', 'bamsleep']) {
+          const ot = rt.objects[name];
+          if (ot) for (const inst of ot.getAllInstances().slice()) inst.destroy();
+        }
+        const btn = rt.objects.Starbutton && rt.objects.Starbutton.getFirstInstance();
+        if (btn) { try { btn.setAnimation('2'); } catch (err) { /* cosmetic only */ } }
+        g.boss_key = 1;
+      } },
 
     { key: 'ch2', label: 'Ch2 - Clown', layout: 'Chapter 2 - Circus',
       landing: { x: 2960, y: 320 } },
@@ -113,6 +137,31 @@
     for (let i = 0; i < frames; i++) await nextFrame();
   }
 
+  /**
+   * Hold a direction until the fight arms, or give up.
+   *
+   * Synthetic KeyboardEvents are enough here -- C3's keyboard plugin listens
+   * on the document and does not check isTrusted, so the game reads these the
+   * same as a real key. That matters because some triggers only fire when the
+   * player physically crosses them; no amount of setting globals substitutes
+   * for walking through the door.
+   */
+  async function walkUntilArmed(spec, maxFrames = 360) {
+    const rt = PBP.runtime;
+    const opts = { key: spec.code, code: spec.code, keyCode: spec.keyCode,
+                   which: spec.keyCode, bubbles: true, cancelable: true };
+    document.dispatchEvent(new KeyboardEvent('keydown', opts));
+    try {
+      for (let i = 0; i < maxFrames; i++) {
+        if (Number(rt.globalVars.Boss_active) !== 0) return true;
+        await nextFrame();
+      }
+      return false;
+    } finally {
+      document.dispatchEvent(new KeyboardEvent('keyup', opts));
+    }
+  }
+
   async function to(key) {
     const target = findTarget(key);
     if (!target) { PBP.warn(`unknown warp target "${key}"`); return false; }
@@ -129,6 +178,12 @@
         return false;
       }
       await settle(60);   // let the layout's events create their instances
+
+      // Put the level into the state the fight expects before moving anyone.
+      if (target.prepare) {
+        try { target.prepare(rt); } catch (err) { PBP.warn(`prepare for ${target.key} failed:`, err); }
+        await settle(30);
+      }
 
       let moved = null;
       const player = firstInstance('Player');
@@ -165,7 +220,15 @@
       // invisible and half-loaded -- because the switch trigger does more than
       // set the flag.
 
-      PBP.emit('warp:done', { key: target.key, label: target.label, layout: target.layout, moved, note: target.note });
+      let armed = null;
+      if (target.walkIn) {
+        armed = await walkUntilArmed(target.walkIn);
+        if (!armed) PBP.warn(`warp ${target.key}: walked in but the fight never armed`);
+        const p = firstInstance('Player');
+        if (p) moved = [Math.round(p.x), Math.round(p.y)];
+      }
+
+      PBP.emit('warp:done', { key: target.key, label: target.label, layout: target.layout, moved, armed, note: target.note });
       PBP.log(`warped to ${target.label}` + (moved ? ` @${moved}` : ''));
       return true;
     } finally {
