@@ -11,12 +11,23 @@ and injects its features at startup, so Steam updates cannot break it and
 
 ## Quick start
 
-```bash
-npm start
-```
+1. Install [Node.js](https://nodejs.org) 22 or newer, if you do not have it.
+2. Download the latest release, unzip it anywhere.
+3. Double-click **`start practicetool`**.
 
 That locates the Steam install, launches the game, injects the payload and
-stays attached. Press Ctrl+C to detach — the game keeps running.
+stays attached. Close the window to detach — the game keeps running.
+
+If it does not work, run the self-test: open the folder in a terminal and
+
+```bash
+"start practicetool.bat" doctor
+```
+
+It checks Node, the Steam install and the debug port, and says which one is
+wrong. (The quotes matter — `start` on its own is a Windows command.)
+
+From a checkout, `npm start` does the same thing.
 
 ### Hotkeys
 

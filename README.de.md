@@ -13,12 +13,25 @@ machen.
 
 ## Schnellstart
 
-```bash
-npm start
-```
+1. [Node.js](https://nodejs.org) 22 oder neuer installieren, falls nicht vorhanden.
+2. Das neueste Release herunterladen und irgendwohin entpacken.
+3. Doppelklick auf **`start practicetool`**.
 
 Das findet die Steam-Installation, startet das Spiel, injiziert das Payload und
-bleibt verbunden. Strg+C trennt die Verbindung — das Spiel läuft weiter.
+bleibt verbunden. Fenster schließen trennt die Verbindung — das Spiel läuft
+weiter.
+
+Wenn es nicht klappt, gibt es einen Selbsttest. Ordner im Terminal öffnen und:
+
+```bash
+"start practicetool.bat" doctor
+```
+
+Der prüft Node, die Steam-Installation und den Debug-Port und sagt, woran es
+liegt. (Die Anführungszeichen sind nötig — `start` ist auch ein
+Windows-Befehl.)
+
+Aus einem Checkout heraus macht `npm start` dasselbe.
 
 ### Tastenbelegung
 

@@ -96,7 +96,53 @@ async function cmdShot() {
   session.close();
 }
 
-const COMMANDS = { run: cmdRun, probe: cmdProbe, eval: cmdEval, shot: cmdShot };
+/**
+ * Check everything the tool needs, without launching anything. This is what
+ * to run first when "start practicetool" does not work.
+ */
+async function cmdDoctor() {
+  const rows = [];
+  let fatal = 0;
+
+  const major = Number(process.versions.node.split('.')[0]);
+  const nodeOk = major >= 22 && typeof WebSocket === 'function';
+  rows.push([nodeOk, `Node.js ${process.versions.node}`,
+    nodeOk ? 'ok' : 'need v22 or newer (this build has no global WebSocket)']);
+  if (!nodeOk) fatal++;
+
+  let gameDir = null;
+  try {
+    gameDir = launcher.findGameDir();
+    rows.push([true, 'PizzaBoy install', gameDir]);
+  } catch (err) {
+    rows.push([false, 'PizzaBoy install', err.message]);
+    fatal++;
+  }
+
+  if (gameDir) {
+    try {
+      const { json } = launcher.readPackageJson(gameDir);
+      const args = json['chromium-args'] || '';
+      const m = args.match(/--remote-debugging-port=(\d+)/);
+      rows.push([!!m, 'debug port in package.json',
+        m ? `port ${m[1]}` : `missing - "npm start" will add it (may need an admin terminal)`]);
+    } catch (err) {
+      rows.push([false, 'game package.json', err.message]);
+      fatal++;
+    }
+  }
+
+  rows.push([true, 'game running', launcher.isGameRunning() ? 'yes' : 'no (will be started)']);
+  rows.push([true, 'savestate folder', states.STATES_DIR]);
+
+  for (const [ok, label, detail] of rows) {
+    console.log(`  ${ok ? '[ok]  ' : '[FAIL]'} ${label.padEnd(26)} ${detail}`);
+  }
+  console.log(fatal ? `\n${fatal} problem(s) above must be fixed first.` : '\nAll good - run "start practicetool" to play.');
+  if (fatal) process.exitCode = 1;
+}
+
+const COMMANDS = { run: cmdRun, probe: cmdProbe, eval: cmdEval, shot: cmdShot, doctor: cmdDoctor };
 
 async function main() {
   const cmd = process.argv[2] || 'run';
