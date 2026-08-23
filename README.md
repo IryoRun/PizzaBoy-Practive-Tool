@@ -24,6 +24,8 @@ stays attached. Press Ctrl+C to detach — the game keeps running.
 | --- | --- |
 | `F1` | show help |
 | `F2` | toggle the savestate panel |
+| `F3` (hold) | fast-forward through unplayable stretches |
+| `Shift+F3` | cycle speed 2× / 4× / 8× / 16× |
 | `F5` | save state to the selected slot |
 | `F8` | load the selected slot |
 | `Shift+F8` | clear the selected slot |
@@ -110,11 +112,45 @@ about 400 ms.
 `F10` arms auto-skip, which watches each frame and clears scenes the moment
 they start.
 
-#### What this does *not* cover yet
+### Fast-forward (`F3`)
 
-The goal is skipping **every stretch where the game takes the controls away**,
-not only the ones with a text box. Dialogue is the largest such stretch and is
-handled; these are not:
+Dialogue skipping only helps where there is a text box to advance. Plenty of
+stretches take the controls away without one. Rather than detect and
+special-case each mechanism, holding `F3` scales the runtime clock: animations,
+tweens, timelines, fades and waits all run at 2–16× and then drop back.
+
+Nothing is bypassed — every event the passage was going to fire still fires,
+just sooner. C3's `timeScale` feeds `dt`, which every behaviour reads, so this
+is the game's own notion of time rather than something bolted on top. The
+previous scale is restored rather than assumed to be 1, because the game uses
+`timeScale` for its own slow-motion effects. A lost keyup (alt-tab, focus loss)
+drops the speed back automatically.
+
+#### Why it is a held key and not automatic
+
+An automatic version needs to know when the player has no control, and that is
+still unresolved. Event groups are ruled out: all 108 in the project are
+declared active and **none is ever toggled by name**, so the lock lives in
+conditions on some global. `Player_state` is the likeliest candidate, but that
+is a guess, not a measurement.
+
+`src/payload/90-probe.js` exists to settle it. Start it, walk into a scripted
+stretch, and `PBP.probe.summary()` names every global that changed and the
+values it took:
+
+```js
+__PBP.probe.start('all');   // or a list of names
+// ... play through the locked stretch ...
+__PBP.probe.stop();
+__PBP.probe.summary();
+```
+
+Once the lock variable is known, `PBP.turbo.start()` / `stop()` can be driven
+from it, and the held key becomes optional.
+
+#### Mechanisms behind the locked stretches
+
+For reference, these are what `F3` is fast-forwarding through:
 
 - **scripted movement** — `CutsceneDialogue` takes `cs_PlayerX`, `cs_PlayerY`
   and `cs_player_animation`, so the player is puppeted along a path with input
@@ -125,10 +161,10 @@ handled; these are not:
 - **whole cutscene layouts** — `VGlaugh`, the chapter intros, `TV2`,
   `Chapter 7 - pd downfall`
 
-A general solution probably keys off whatever the game uses to lock input
-(`Player_state` is the likeliest candidate) rather than off `dia`, so that any
-locked stretch can be detected and fast-forwarded the same way. That work is
-not done.
+**Not yet verified against the real game.** `F3` is written and parses, but the
+game could not be launched when it was added, so the speed factors have not
+been tried against an actual scripted stretch. Audio pitch and physics at 16×
+are the things most likely to misbehave.
 
 ## Game internals worth knowing
 
@@ -187,7 +223,8 @@ encounter where a fixed spawn point is not good enough.
 - [x] On-screen overlay and hotkeys
 - [x] Skipping dialogue — manual and automatic
 - [x] Boss warps — all seven chapters, with recordable warp points
+- [x] Fast-forward through input-locked stretches (`F3`) — **written, not yet
+      tested against the running game**
 - [ ] Ch1 / Ch2 warp points need setting by hand (`Shift+F11`)
-- [ ] **Skipping the other input-locked stretches** — scripted movement,
-      timelines, fades, cutscene layouts. This is the bigger half of "let me
-      skip the parts I can't play", and it is still open.
+- [ ] Automatic fast-forward — blocked on identifying the variable the game
+      uses to lock input; `90-probe.js` is there to find it

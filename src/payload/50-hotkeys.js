@@ -12,6 +12,8 @@
   const HELP = [
     'F1        this help',
     'F2        slot panel on/off',
+    'F3 (hold) fast-forward through unplayable bits',
+    'Shift+F3  cycle speed 2x / 4x / 8x / 16x',
     'F5        save state to selected slot',
     'F8        load selected slot',
     'Shift+F8  clear selected slot',
@@ -38,6 +40,11 @@
     },
     F2() {
       if (PBP.overlay) PBP.overlay.toggleSlots();
+    },
+    F3(ev) {
+      // keydown repeats while held; start() is a no-op once running.
+      if (ev.shiftKey) PBP.turbo.cycleFactor();
+      else PBP.turbo.start();
     },
     F5() { PBP.states.save(state.slot); },
     F6() { selectSlot(state.slot - 1); },
@@ -89,7 +96,16 @@
     try { fn(ev); } catch (err) { PBP.warn(`hotkey ${ev.key} failed:`, err); }
   }
 
+  function onKeyUp(ev) {
+    if (ev.key === 'F3') {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      PBP.turbo.stop();
+    }
+  }
+
   window.addEventListener('keydown', onKeyDown, true);
+  window.addEventListener('keyup', onKeyUp, true);
 
   PBP.hotkeys = {
     get slot() { return state.slot; },

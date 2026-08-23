@@ -26,6 +26,8 @@ bleibt verbunden. Strg+C trennt die Verbindung — das Spiel läuft weiter.
 | --- | --- |
 | `F1` | Hilfe anzeigen |
 | `F2` | Savestate-Panel ein/aus |
+| `F3` (halten) | Zeitraffer durch unspielbare Passagen |
+| `Shift+F3` | Geschwindigkeit durchschalten: 2× / 4× / 8× / 16× |
 | `F5` | State in den gewählten Slot speichern |
 | `F8` | Gewählten Slot laden |
 | `Shift+F8` | Gewählten Slot löschen |
@@ -115,11 +117,46 @@ Zeilen ist in etwa 400 ms durch.
 `F10` schaltet den Automatikmodus scharf, der jeden Frame prüft und Szenen
 räumt, sobald sie beginnen.
 
-#### Was das noch *nicht* abdeckt
+### Zeitraffer (`F3`)
 
-Das Ziel ist, **jede Passage zu überspringen, in der das Spiel die Kontrolle
-übernimmt** — nicht nur die mit Textbox. Dialoge sind der größte solche Brocken
-und sind erledigt, diese hier nicht:
+Der Dialog-Skip hilft nur dort, wo es eine Textbox zum Weiterklicken gibt.
+Viele Passagen nehmen dir die Kontrolle ohne eine solche. Statt jeden
+Mechanismus einzeln zu behandeln, skaliert gehaltenes `F3` die Runtime-Uhr:
+Animationen, Tweens, Timelines, Blenden und Wartezeiten laufen mit 2–16× und
+fallen danach zurück.
+
+Es wird nichts übersprungen — jedes Event, das die Passage auslösen sollte,
+läuft weiterhin, nur früher. C3s `timeScale` speist `dt`, das jedes Behaviour
+liest; das ist also die spieleigene Zeitrechnung und nichts Aufgesetztes. Der
+vorherige Wert wird wiederhergestellt statt auf 1 gesetzt, weil das Spiel
+`timeScale` selbst für Zeitlupeneffekte nutzt. Geht ein Keyup verloren
+(Alt-Tab, Fokusverlust), fällt die Geschwindigkeit automatisch zurück.
+
+#### Warum gehaltene Taste und nicht automatisch
+
+Eine automatische Version müsste wissen, wann der Spieler keine Kontrolle hat —
+und das ist ungeklärt. Event-Gruppen sind ausgeschlossen: Alle 108 im Projekt
+sind aktiv deklariert und **keine wird je namentlich umgeschaltet**. Die Sperre
+sitzt also in Bedingungen auf irgendeinem Global. `Player_state` ist der
+wahrscheinlichste Kandidat, aber das ist geraten, nicht gemessen.
+
+Dafür gibt es `src/payload/90-probe.js`. Starten, in eine gescriptete Passage
+laufen, und `PBP.probe.summary()` nennt jedes Global, das sich geändert hat,
+samt der Werte:
+
+```js
+__PBP.probe.start('all');   // oder eine Namensliste
+// ... durch die gesperrte Passage spielen ...
+__PBP.probe.stop();
+__PBP.probe.summary();
+```
+
+Sobald die Sperrvariable bekannt ist, lassen sich `PBP.turbo.start()` /
+`stop()` daran hängen, und die gehaltene Taste wird optional.
+
+#### Was hinter den gesperrten Passagen steckt
+
+Zur Einordnung — das hier spult `F3` vor:
 
 - **Gescriptete Bewegung** — `CutsceneDialogue` nimmt `cs_PlayerX`, `cs_PlayerY`
   und `cs_player_animation` entgegen, die Figur wird also ohne Eingabe an einer
@@ -130,10 +167,10 @@ und sind erledigt, diese hier nicht:
 - **Ganze Cutscene-Layouts** — `VGlaugh`, die Kapitel-Intros, `TV2`,
   `Chapter 7 - pd downfall`
 
-Eine allgemeine Lösung hängt sich vermutlich an das, womit das Spiel die
-Eingabe sperrt (`Player_state` ist der wahrscheinlichste Kandidat), statt an
-`dia` — damit jede gesperrte Passage gleich erkannt und vorgespult werden kann.
-Diese Arbeit steht noch aus.
+**Noch nicht am echten Spiel geprüft.** `F3` ist geschrieben und parst sauber,
+aber das Spiel ließ sich zum Zeitpunkt der Umsetzung nicht starten — die
+Geschwindigkeitsstufen sind also nie gegen eine echte gescriptete Passage
+gelaufen. Am ehesten könnten Tonhöhe und Physik bei 16× Ärger machen.
 
 ## Wissenswertes über die Spielinterna
 
@@ -195,8 +232,8 @@ für jede Situation, in der ein fester Startpunkt nicht genügt.
 - [x] Overlay und Tastenbelegung
 - [x] Dialoge überspringen — manuell und automatisch
 - [x] Boss-Warps — alle sieben Kapitel, mit setzbaren Warp-Punkten
+- [x] Zeitraffer durch eingabegesperrte Passagen (`F3`) — **geschrieben, aber
+      noch nicht am laufenden Spiel getestet**
 - [ ] Warp-Punkte für Kap. 1 / 2 müssen von Hand gesetzt werden (`Shift+F11`)
-- [ ] **Die übrigen eingabegesperrten Passagen überspringen** — gescriptete
-      Bewegung, Timelines, Blenden, Cutscene-Layouts. Das ist die größere
-      Hälfte von „lass mich überspringen, was ich nicht spielen kann", und sie
-      ist noch offen.
+- [ ] Automatischer Zeitraffer — blockiert daran, die Variable zu finden, mit
+      der das Spiel die Eingabe sperrt; `90-probe.js` ist dafür da

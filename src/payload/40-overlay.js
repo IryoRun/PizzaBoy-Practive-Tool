@@ -55,9 +55,15 @@
 .pbp-boss .k { color: #e8b03a; }
 .pbp-boss .note { opacity: .55; font-size: 12px; }
 #pbp-bosses .foot { margin-top: 10px; font-size: 12px; opacity: .5; }
+#pbp-turbo {
+  position: absolute; right: 16px; top: 16px; display: none;
+  background: rgba(232,176,58,.92); color: #17140f; font-weight: 700;
+  padding: 5px 11px; border-radius: 3px; font-size: 15px; letter-spacing: .06em;
+}
+#pbp-turbo.show { display: block; }
 `;
 
-  let root, toastBox, slotBox, hintBox, bossBox;
+  let root, toastBox, slotBox, hintBox, bossBox, turboBox;
 
   function build() {
     if (root) return;
@@ -72,11 +78,13 @@
       '<div id="pbp-slots"><h4>Savestates</h4><div class="rows"></div></div>' +
       '<div id="pbp-bosses"><h4>Warp to boss</h4><div class="rows"></div>' +
       '<div class="foot">press a number, Esc to close</div></div>' +
+      '<div id="pbp-turbo"></div>' +
       '<div id="pbp-hint">F1 help</div>';
     document.body.appendChild(root);
     toastBox = root.querySelector('#pbp-toasts');
     slotBox = root.querySelector('#pbp-slots');
     bossBox = root.querySelector('#pbp-bosses');
+    turboBox = root.querySelector('#pbp-turbo');
     hintBox = root.querySelector('#pbp-hint');
   }
 
@@ -172,4 +180,11 @@
   PBP.on('warp:marked', (d) => toast(`Warp point for ${d.label} set to ${d.pos[0]},${d.pos[1]}`, 'ok', 2600));
   PBP.on('warp:mark-failed', (d) => toast(`Cannot set warp point: ${d.reason}`, 'err', 3000));
   PBP.on('warp:mark-cleared', (d) => toast(`Warp point for ${d.label} cleared`));
+  PBP.on('turbo:on', (d) => { build(); turboBox.textContent = `>> ${d.factor}x`; turboBox.classList.add('show'); });
+  PBP.on('turbo:off', () => { if (turboBox) turboBox.classList.remove('show'); });
+  PBP.on('turbo:factor', (d) => {
+    build();
+    if (turboBox.classList.contains('show')) turboBox.textContent = `>> ${d.factor}x`;
+    else toast(`Fast-forward speed: ${d.factor}x`, null, 1400);
+  });
 })();
