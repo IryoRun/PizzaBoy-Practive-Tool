@@ -15,9 +15,14 @@
   //  - dedicated boss layout: warp and you are there
   //  - boss behind a door inside a big level: warp, then move to the door
   //  - Chapter 4 is a rhythm sequence and deliberately has no player object
+  // Offsets below were found with tools/find-warp-spot.js, which drops the
+  // player from above and then checks with real arrow-key input that it can
+  // actually walk. Do not adjust them by eye: a marker's y is often *inside*
+  // the floor -- Chapter 6's boss sits at y=1104 while the ground there is at
+  // y≈976 -- which is what made the first version wedge the player in a wall.
   const TARGETS = [
     { key: 'ch1', label: 'Ch1 - Vampire Girl', layout: '1-VampireHouse',
-      anchor: { object: 'Bosslock', dx: -48 }, globals: { boss_key: 1 } },
+      anchor: { object: 'Vampire', dx: -140 }, globals: { boss_key: 1 } },
     { key: 'ch2', label: 'Ch2 - Clown', layout: 'Chapter 2 - Circus',
       anchor: { object: 'Bosslock', dx: -48 }, globals: { boss_key: 1 } },
     { key: 'ch3', label: 'Ch3 - Triton', layout: 'Chapter 3 - Boss' },
@@ -25,10 +30,43 @@
       note: 'rhythm sequence - no player object by design' },
     { key: 'ch5', label: 'Ch5 - Dracula', layout: 'Chapter 5 -Boss' },
     { key: 'ch6', label: 'Ch6 - Tin', layout: 'Chapter 6 - Snow',
-      anchor: { object: 'Tin_Boss', dx: -220 } },
+      anchor: { object: 'Tin_Boss', dx: -320 } },
     { key: 'ch7', label: 'Ch7 - Dawg Mascot', layout: 'Chapter 7 -final',
       anchor: { object: 'Bosslock', dx: -48 }, globals: { boss_key: 1 } },
   ];
+
+  // Placing the player level with a marker drops it into whatever the marker
+  // is embedded in. Placing it well above and letting the game's own gravity
+  // find the floor is what makes these landings reliable.
+  const DROP_HEIGHT = 380;
+
+  // Levels are divided into `room` rectangles and the game derives roomUID --
+  // and with it the camera position -- from the room the player is inside.
+  // Landing even slightly outside one (16px above a room's top edge was
+  // enough) leaves the camera behind in the room you came from, showing
+  // scenery while you stand somewhere else. Checkpoints are always inside a
+  // room, which is half of why they make good landing spots.
+
+  /**
+   * The checkpoint nearest the anchor, if the layout has any.
+   *
+   * Checkpoints are the one position on a layout the game guarantees is
+   * usable: it respawns the player there after a death, so there is standing
+   * room, it sits inside the room grid (which is what keeps the camera with
+   * you), and it is somewhere the level intends you to be. Every checkpoint
+   * scanned on Chapters 1, 2 and 7 tested walkable.
+   */
+  function nearestCheckpoint(anchor) {
+    const ot = PBP.runtime.objects.checkpoint;
+    if (!ot) return null;
+    let best = null;
+    let bestD = Infinity;
+    for (const c of ot.getAllInstances()) {
+      const d = Math.hypot(c.x - anchor.x, c.y - anchor.y);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    return best;
+  }
 
   const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
   let running = false;
@@ -95,14 +133,27 @@
       const custom = overrides.get(target.key);
       const player = firstInstance('Player');
       if (custom && player) {
+        // A point you recorded yourself is exact -- you were standing on it.
         player.x = custom.x;
         player.y = custom.y;
+        await settle(20);
         moved = [Math.round(player.x), Math.round(player.y)];
       } else if (target.anchor) {
         const anchor = firstInstance(target.anchor.object);
         if (player && anchor) {
-          player.x = anchor.x + (target.anchor.dx || 0);
-          player.y = anchor.y + (target.anchor.dy || 0);
+          const cp = nearestCheckpoint(anchor);
+          if (cp) {
+            player.x = cp.x;
+            player.y = cp.y;
+          } else {
+            // No checkpoints on this layout (Chapter 6). Fall in from high
+            // above the marker and let gravity find the floor -- placing level
+            // with a marker buries you, because a marker's y is often below
+            // the ground it stands on.
+            player.x = anchor.x + (target.anchor.dx || 0);
+            player.y = anchor.y + (target.anchor.dy || 0) - DROP_HEIGHT;
+          }
+          await settle(50);   // let gravity finish
           moved = [Math.round(player.x), Math.round(player.y)];
         } else {
           // Not fatal: the level is still loaded, just not at the boss.

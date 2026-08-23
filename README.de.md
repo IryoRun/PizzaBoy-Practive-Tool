@@ -218,25 +218,49 @@ dich zum Boss stellen. Denn die Kapitel sind unterschiedlich gebaut:
 
 | Ziel | Layout | Vorgehen |
 | --- | --- | --- |
-| Kap. 1 – Vampire Girl | `1-VampireHouse` | Boss hinter Tür; Anker auf `Bosslock` |
-| Kap. 2 – Clown | `Chapter 2 - Circus` | Boss hinter Tür; Anker auf `Bosslock` |
+| Kap. 1 – Vampire Girl | `1-VampireHouse` | Checkpoint nächst dem `Vampire` |
+| Kap. 2 – Clown | `Chapter 2 - Circus` | Checkpoint nächst der Bosstür |
 | Kap. 3 – Triton | `Chapter 3 - Boss` | eigenes Layout, landet in der Arena |
 | Kap. 4 – Frank | `Chapter 4 - Boss` | Rhythmus-Sequenz; bewusst ohne `Player`-Objekt |
 | Kap. 5 – Dracula | `Chapter 5 -Boss` | eigenes Layout, landet in der Arena |
-| Kap. 6 – Tin | `Chapter 6 - Snow` | Anker auf `Tin_Boss` |
-| Kap. 7 – Dawg Mascot | `Chapter 7 -final` | Boss hinter Tür; Anker auf `Bosslock` |
+| Kap. 6 – Tin | `Chapter 6 - Snow` | keine Checkpoints; Fall von oben über `Tin_Boss` |
+| Kap. 7 – Dawg Mascot | `Chapter 7 -final` | Checkpoint nächst der Bosstür |
 
-Per Screenshot bestätigt: Kapitel 3 warpt direkt in den startenden Kampf samt
-Intro, Kapitel 6 stellt dich Tin gegenüber, Kapitel 7 setzt dich vor den
-Mascot. **Kapitel 1 und 2 sind die wackligen** — die Türmarkierung `Bosslock`
-ist eine plausible Vermutung, wo der Kampf beginnt, aber eben nur eine
-Vermutung.
+**Wo man landet.** Die erste Fassung zielte auf die Bosstür und hat die Figur
+in Kapitel 1, 2 und 6 in Wänden festgesetzt. Zwei Dinge waren falsch, und beide
+sollte man kennen, bevor man an diesen Werten dreht:
 
-Genau dafür ist `Shift+F11` da: Stell dich hin, wo der Kampf anfangen soll,
-drück die Taste, und dieser Punkt ersetzt den eingebauten Anker dauerhaft. Die
-Punkte landen in `states/warp-anchors.json` und werden beim Start wieder
-geladen. So sind die wackligen Ziele gedacht fertigzustellen — das braucht
-jemanden, der den Kampf tatsächlich gespielt hat.
+- Das `y` einer Markierung liegt oft *im* Boden. Der Boss von Kapitel 6 sitzt
+  bei y=1104, der Boden dort aber bei y≈976 — auf gleicher Höhe abgesetzt wird
+  die Figur begraben. Von selbst kommt sie nicht wieder raus: Wer in Geometrie
+  steckt, bewegt sich gar nicht.
+- Level sind ein Raster aus `room`-Rechtecken, und das Spiel leitet `roomUID` —
+  und damit die Kamera — aus dem Raum ab, in dem die Figur *drin* ist. Landet
+  man 16 px über der Oberkante (also auf dem Dach), bleibt die Kamera im
+  vorigen Raum und zeigt Kulisse, während man woanders steht.
+
+Deshalb landen die Ziele jetzt auf dem **Checkpoint, der dem Boss am nächsten
+liegt**. Checkpoints sind die eine Stelle, die ein Level garantiert brauchbar
+hält: Das Spiel respawnt dich dort, es gibt also Stehplatz, und sie liegen im
+Raumraster, sodass die Kamera mitkommt. Kapitel 6 hat keine Checkpoints und
+lässt die Figur stattdessen von hoch über dem Boss fallen.
+
+Zwei Werkzeuge halten das ehrlich — beide brauchen ein laufendes Spiel mit
+verbundenem Tool:
+
+```bash
+node tools/verify-warps.js              # alle Ziele: läuft man, sieht man sich
+node tools/find-warp-spot.js "<layout>" # ein Layout nach brauchbaren Stellen absuchen
+```
+
+`verify-warps` warpt jedes Ziel an, schickt echte Pfeiltasten, um zu prüfen ob
+sich die Figur wirklich bewegt, und vergleicht die Scroll-Position mit der
+Figur, um Landungen außerhalb des Bildes zu erwischen. Beide Fehlerarten sieht
+man nicht, wenn man nur Koordinaten liest.
+
+Wenn ein Landepunkt trotzdem nicht dort ist, wo der Kampf für dich anfangen
+soll, überschreibt ihn `Shift+F11`: hinstellen, Taste drücken, fertig. Die
+Punkte landen in `states/warp-anchors.json`.
 
 Achtung: `1-VH Boss` sieht nach einem Kapitel-1-Boss-Layout aus, ist aber ein
 Stub — nur Boden und Figur, ein einziges Event im Sheet. Der echte Kampf von
@@ -254,6 +278,7 @@ für jede Situation, in der ein fester Startpunkt nicht genügt.
 - [x] Boss-Warps — alle sieben Kapitel, mit setzbaren Warp-Punkten
 - [x] Zeitraffer durch eingabegesperrte Passagen (`F3`) — **geschrieben, aber
       noch nicht am laufenden Spiel getestet**
-- [ ] Warp-Punkte für Kap. 1 / 2 müssen von Hand gesetzt werden (`Shift+F11`)
+- [x] Alle sieben Warps landen begehbar und im Bild, geprüft mit
+      `tools/verify-warps.js` am laufenden Spiel
 - [ ] Automatischer Zeitraffer — blockiert daran, die Variable zu finden, mit
       der das Spiel die Eingabe sperrt; `90-probe.js` ist dafür da

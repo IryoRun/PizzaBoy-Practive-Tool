@@ -13,7 +13,7 @@
 
   const PBP = window.__PBP = {
     installed: true,
-    version: '0.1.0',
+    version: '0.3.0',
     runtime: null,
     log(...args) { console.log('%c[PBP]', 'color:#e8b03a;font-weight:bold', ...args); },
     warn(...args) { console.warn('[PBP]', ...args); },

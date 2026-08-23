@@ -209,23 +209,49 @@ you at the boss, because the chapters differ in shape:
 
 | Target | Layout | How it works |
 | --- | --- | --- |
-| Ch1 – Vampire Girl | `1-VampireHouse` | boss behind a door; anchored to `Bosslock` |
-| Ch2 – Clown | `Chapter 2 - Circus` | boss behind a door; anchored to `Bosslock` |
+| Ch1 – Vampire Girl | `1-VampireHouse` | checkpoint nearest the `Vampire` |
+| Ch2 – Clown | `Chapter 2 - Circus` | checkpoint nearest the boss door |
 | Ch3 – Triton | `Chapter 3 - Boss` | dedicated layout, lands in the arena |
 | Ch4 – Frank | `Chapter 4 - Boss` | rhythm sequence; no `Player` object by design |
 | Ch5 – Dracula | `Chapter 5 -Boss` | dedicated layout, lands in the arena |
-| Ch6 – Tin | `Chapter 6 - Snow` | anchored to `Tin_Boss` |
-| Ch7 – Dawg Mascot | `Chapter 7 -final` | boss behind a door; anchored to `Bosslock` |
+| Ch6 – Tin | `Chapter 6 - Snow` | no checkpoints; drops in above `Tin_Boss` |
+| Ch7 – Dawg Mascot | `Chapter 7 -final` | checkpoint nearest the boss door |
 
-Verified by screenshot: Ch3 warps straight into the fight with its intro
-playing, Ch6 puts you across the arena from Tin, Ch7 drops you in front of the
-mascot. **Ch1 and Ch2 are the rough ones** — the `Bosslock` door marker is a
-reasonable guess at where the fight starts, but it is only a guess.
+**Where you land.** The first version aimed at the boss door marker and wedged
+the player inside walls on Chapters 1, 2 and 6. Two things were wrong, and both
+are worth knowing before touching these offsets:
 
-Which is what `Shift+F11` is for: stand where the fight should begin, press it,
-and that spot replaces the built-in anchor for good. Points are saved to
-`states/warp-anchors.json` and reloaded at startup. This is the intended way to
-finish the rough targets — it needs someone who has actually played the fight.
+- A marker's `y` is often *inside* the floor. Chapter 6's boss sits at y=1104
+  while the ground there is at y≈976, so placing the player level with it
+  buries them. Nothing falls back out — a player embedded in geometry does not
+  move at all.
+- Levels are a grid of `room` rectangles, and the game derives `roomUID` — and
+  therefore the camera — from the room the player is *inside*. Landing 16px
+  above a room's top edge (on its roof) leaves the camera in the room you came
+  from, showing scenery while you stand elsewhere.
+
+So targets now land on the **checkpoint nearest the boss**. Checkpoints are the
+one spot a layout guarantees is usable: the game respawns you there, so there
+is standing room, and they sit inside the room grid so the camera follows.
+Chapter 6 has no checkpoints and instead drops in from high above the boss and
+lets gravity find the floor.
+
+Two tools keep this honest, both needing the game running with the tool
+attached:
+
+```bash
+node tools/verify-warps.js              # every target: can you walk, can you see
+node tools/find-warp-spot.js "<layout>" # search a layout for usable spots
+```
+
+`verify-warps` warps to each target, delivers real arrow-key input to check the
+player actually moves, and compares the layout scroll against the player to
+catch landing off-screen. Both failure modes are invisible if you only read
+coordinates.
+
+If a landing spot still is not where you want the fight to start, `Shift+F11`
+overrides it: stand on the right spot, press it, and that position replaces the
+built-in one for good. Points are saved to `states/warp-anchors.json`.
 
 Note that `1-VH Boss` looks like a chapter-1 boss layout but is a stub: floor
 and player only, one event in its sheet. Chapter 1's real fight is inside
@@ -243,6 +269,7 @@ encounter where a fixed spawn point is not good enough.
 - [x] Boss warps — all seven chapters, with recordable warp points
 - [x] Fast-forward through input-locked stretches (`F3`) — **written, not yet
       tested against the running game**
-- [ ] Ch1 / Ch2 warp points need setting by hand (`Shift+F11`)
+- [x] All seven warps land somewhere walkable and on-screen, checked by
+      `tools/verify-warps.js` against the running game
 - [ ] Automatic fast-forward — blocked on identifying the variable the game
       uses to lock input; `90-probe.js` is there to find it
