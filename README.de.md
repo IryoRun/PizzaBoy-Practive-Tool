@@ -218,13 +218,13 @@ dich zum Boss stellen. Denn die Kapitel sind unterschiedlich gebaut:
 
 | Ziel | Layout | Vorgehen |
 | --- | --- | --- |
-| Kap. 1 – Vampire Girl | `1-VampireHouse` | Checkpoint nächst dem `Vampire` |
-| Kap. 2 – Clown | `Chapter 2 - Circus` | Checkpoint nächst der Bosstür |
-| Kap. 3 – Triton | `Chapter 3 - Boss` | eigenes Layout, landet in der Arena |
+| Kap. 1 – BamBam | `1-VampireHouse` | **landet neben dem Boss, Kampf startet** |
+| Kap. 2 – Clown | `Chapter 2 - Circus` | sicherer Start; Arena-Landung ist eine Grube |
+| Kap. 3 – Triton | `Chapter 3 - Boss` | **eigene Arena, Kampf startet** |
 | Kap. 4 – Frank | `Chapter 4 - Boss` | Rhythmus-Sequenz; bewusst ohne `Player`-Objekt |
-| Kap. 5 – Dracula | `Chapter 5 -Boss` | eigenes Layout, landet in der Arena |
-| Kap. 6 – Tin | `Chapter 6 - Snow` | keine Checkpoints; Fall von oben über `Tin_Boss` |
-| Kap. 7 – Dawg Mascot | `Chapter 7 -final` | Checkpoint nächst der Bosstür |
+| Kap. 5 – Dracula | `Chapter 5 -Boss` | **eigene Arena, Kampf startet** |
+| Kap. 6 – Tin | `Chapter 6 - Snow` | sicherer Start; Abschnitt läuft mit 1 HP |
+| Kap. 7 – Dawg Mascot | `Chapter 7 -final` | sicherer Start; Arena-Landung ist tödlich |
 
 **Wo man landet.** Die erste Fassung zielte auf die Bosstür und hat die Figur
 in Kapitel 1, 2 und 6 in Wänden festgesetzt. Zwei Dinge waren falsch, und beide
@@ -239,11 +239,29 @@ sollte man kennen, bevor man an diesen Werten dreht:
   man 16 px über der Oberkante (also auf dem Dach), bleibt die Kamera im
   vorigen Raum und zeigt Kulisse, während man woanders steht.
 
-Deshalb landen die Ziele jetzt auf dem **Checkpoint, der dem Boss am nächsten
-liegt**. Checkpoints sind die eine Stelle, die ein Level garantiert brauchbar
-hält: Das Spiel respawnt dich dort, es gibt also Stehplatz, und sie liegen im
-Raumraster, sodass die Kamera mitkommt. Kapitel 6 hat keine Checkpoints und
-lässt die Figur stattdessen von hoch über dem Boss fallen.
+**Wie der Kampf startet.** Jedes Layout trägt seinen Boss in einer
+`Boss`-Familie (plus benanntes Objekt, wo die Familie nicht hinreicht) — schon
+fertig in der Arena, sobald das Layout lädt. BamBam steht bei (4264,368), lange
+bevor man dort ankommt. Es fehlt nur `Boss_active`. Der Warp setzt die Figur
+also neben den Boss und schaltet das Flag, das die übersprungene Questkette
+gesetzt hätte: BamBam wecken, Schalter für die pinken Blöcke drücken, Knochen
+einsammeln, bei Pupperoni gegen den Schlüssel tauschen, Tür öffnen.
+
+Eine frühere Fehldeutung, die festgehalten gehört: Das Setzen von `Boss_active`
+sah zunächst nach kaputtem Zustand aus, weil die Health sank, während die Figur
+stillstand. Das war kein Fehler — das war der Boss, der eine reglose Figur traf.
+Der Kampf lief die ganze Zeit.
+
+Kapitel 1, 3 und 5 setzen die Figur deshalb links neben den Boss und lassen die
+Schwerkraft den Arenaboden finden — am laufenden Spiel geprüft, Kampf inklusive.
+
+Kapitel 2, 6 und 7 sind **nicht gelöst**. Jede Landung neben diesen Bossen ist
+tödlich: unter dem Boden liegt bei 2 und 7 eine Grube, und Kapitel 6 läuft den
+ganzen Abschnitt über mit 1 HP, da endet jede Berührung. Statt dich in den Tod
+zu warpen, starten diese drei am nächsten Checkpoint mit bereits scharfem
+Kampf und sagen das im Menü dazu. Das letzte Stück zu laufen ist nicht die
+Absicht — `Shift+F11` ist die Lösung: hinstellen, wo der Kampf beginnen soll,
+Taste drücken.
 
 Zwei Werkzeuge halten das ehrlich — beide brauchen ein laufendes Spiel mit
 verbundenem Tool:

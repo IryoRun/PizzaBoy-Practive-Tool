@@ -31,7 +31,7 @@ async function main() {
 
   for (const t of targets) {
     await ev(`__PBP.warp.to(${JSON.stringify(t.key)})`);
-    await sleep(1500);
+    await sleep(2500);   // the camera eases toward the room; measuring early lies
 
     const layout = await ev('__PBP.currentLayout()');
     const start = await pos();
@@ -66,7 +66,8 @@ async function main() {
     // hundred pixels off" already means off-screen.
     const view = await ev(`(function(){
       var rt = __PBP.runtime, L = rt.layout, vp = rt.getViewportSize();
-      return { sx: L.scrollX, sy: L.scrollY, halfW: vp[0] / L.scale / 2, halfH: vp[1] / L.scale / 2 };
+      return { sx: L.scrollX, sy: L.scrollY, halfW: vp[0] / L.scale / 2, halfH: vp[1] / L.scale / 2,
+               boss: rt.globalVars.Boss_active };
     })()`);
     const dx = Math.round(Math.abs(view.sx - left[0]));
     const dy = Math.round(Math.abs(view.sy - left[1]));
@@ -76,7 +77,8 @@ async function main() {
     const verdict = !free ? 'STUCK' : (!onScreen ? 'BLIND' : 'ok   ');
     console.log(`  ${verdict} ${t.key.padEnd(4)} ${t.label.padEnd(22)} ` +
                 `at ${start[0]},${start[1]}  walk ${dR}/${dL}  ` +
-                `off-centre ${dx},${dy} of ${Math.round(view.halfW)},${Math.round(view.halfH)}`);
+                `off-centre ${dx},${dy} of ${Math.round(view.halfW)},${Math.round(view.halfH)}  ` +
+                `Boss_active=${view.boss}`);
   }
 
   console.log(bad ? `\n${bad} target(s) need attention.` : '\nAll targets land somewhere walkable.');

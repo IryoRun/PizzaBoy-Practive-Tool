@@ -1,79 +1,59 @@
 // --- Boss warps --------------------------------------------------------
-// goToLayout() alone is enough to build any level: the layout's own event
-// sheet runs and creates the enemies. What it does not do is put you at the
-// boss -- for the chapters whose boss sits behind a door partway through a
-// large level, the player still spawns at the level entrance.
+// goToLayout() alone builds the level: the layout's event sheet runs and
+// creates the enemies. Getting an actual *fight* out of it needs two more
+// things, both learned the hard way.
 //
-// So each target optionally names an anchor object (the boss door, or the
-// boss itself) and the player is moved there once the layout has settled.
+// 1. Where to stand. A marker's y is often inside the floor -- Chapter 6's
+//    boss sits at y=1104 while the ground there is at y~976 -- and a player
+//    placed inside geometry does not fall back out, it just sticks. So aim
+//    above the boss and let the game's own gravity find the floor.
+//
+// 2. The camera. Levels are a grid of `room` rectangles and the game derives
+//    roomUID, and with it the camera, from the room the player is inside.
+//    Landing on a room's roof is walkable ground where you cannot see
+//    yourself. Landing beside the boss keeps you in the boss's room.
+//
+// Then `Boss_active = 1` starts the fight. The bosses are already
+// instantiated in their arenas -- Chapter 1's BamBam stands at (4264,368)
+// from the moment the layout loads -- so the flag is all that is missing.
+// (The quest chain that normally leads there, waking BamBam, flipping the
+// switch blocks, fetching Pupperoni's bone for the key, is what the flag
+// lets us skip.)
 
 (function () {
   const PBP = window.__PBP;
   if (!PBP) return;
 
-  // Three shapes of encounter:
-  //  - dedicated boss layout: warp and you are there
-  //  - boss behind a door inside a big level: warp, then move to the door
-  //  - Chapter 4 is a rhythm sequence and deliberately has no player object
-  // Offsets below were found with tools/find-warp-spot.js, which drops the
-  // player from above and then checks with real arrow-key input that it can
-  // actually walk. Do not adjust them by eye: a marker's y is often *inside*
-  // the floor -- Chapter 6's boss sits at y=1104 while the ground there is at
-  // y≈976 -- which is what made the first version wedge the player in a wall.
+  // `Boss` is a family holding each chapter's boss, but it does not cover
+  // every layout, so each target also names its own object as a fallback.
   const TARGETS = [
-    { key: 'ch1', label: 'Ch1 - Vampire Girl', layout: '1-VampireHouse',
-      anchor: { object: 'Vampire', dx: -140 }, globals: { boss_key: 1 } },
+    { key: 'ch1', label: 'Ch1 - BamBam', layout: '1-VampireHouse',
+      boss: ['Boss', 'bambam'] },
     { key: 'ch2', label: 'Ch2 - Clown', layout: 'Chapter 2 - Circus',
-      anchor: { object: 'Bosslock', dx: -48 }, globals: { boss_key: 1 } },
-    { key: 'ch3', label: 'Ch3 - Triton', layout: 'Chapter 3 - Boss' },
+      boss: ['Boss', 'clown'], safeStart: true,
+      note: 'lands at the nearest checkpoint - set your own spot with Shift+F11' },
+    { key: 'ch3', label: 'Ch3 - Triton', layout: 'Chapter 3 - Boss',
+      boss: ['Boss', 'Triton'] },
     { key: 'ch4', label: 'Ch4 - Frank (rhythm)', layout: 'Chapter 4 - Boss',
       note: 'rhythm sequence - no player object by design' },
-    { key: 'ch5', label: 'Ch5 - Dracula', layout: 'Chapter 5 -Boss' },
+    { key: 'ch5', label: 'Ch5 - Dracula', layout: 'Chapter 5 -Boss',
+      boss: ['Boss', 'Dracula'] },
     { key: 'ch6', label: 'Ch6 - Tin', layout: 'Chapter 6 - Snow',
-      anchor: { object: 'Tin_Boss', dx: -320 } },
+      boss: ['Boss', 'Tin_Boss'], safeStart: true,
+      note: 'starts you at 1 HP by design - set your own spot with Shift+F11' },
     { key: 'ch7', label: 'Ch7 - Dawg Mascot', layout: 'Chapter 7 -final',
-      anchor: { object: 'Bosslock', dx: -48 }, globals: { boss_key: 1 } },
+      boss: ['Boss', 'DawgMascot'], safeStart: true,
+      note: 'lands at the nearest checkpoint - set your own spot with Shift+F11' },
   ];
 
-  // Placing the player level with a marker drops it into whatever the marker
-  // is embedded in. Placing it well above and letting the game's own gravity
-  // find the floor is what makes these landings reliable.
-  const DROP_HEIGHT = 380;
-
-  // Levels are divided into `room` rectangles and the game derives roomUID --
-  // and with it the camera position -- from the room the player is inside.
-  // Landing even slightly outside one (16px above a room's top edge was
-  // enough) leaves the camera behind in the room you came from, showing
-  // scenery while you stand somewhere else. Checkpoints are always inside a
-  // room, which is half of why they make good landing spots.
-
-  /**
-   * The checkpoint nearest the anchor, if the layout has any.
-   *
-   * Checkpoints are the one position on a layout the game guarantees is
-   * usable: it respawns the player there after a death, so there is standing
-   * room, it sits inside the room grid (which is what keeps the camera with
-   * you), and it is somewhere the level intends you to be. Every checkpoint
-   * scanned on Chapters 1, 2 and 7 tested walkable.
-   */
-  function nearestCheckpoint(anchor) {
-    const ot = PBP.runtime.objects.checkpoint;
-    if (!ot) return null;
-    let best = null;
-    let bestD = Infinity;
-    for (const c of ot.getAllInstances()) {
-      const d = Math.hypot(c.x - anchor.x, c.y - anchor.y);
-      if (d < bestD) { bestD = d; best = c; }
-    }
-    return best;
-  }
+  // Stand a short step to the boss's left, dropped in from above it.
+  const APPROACH_DX = -100;
+  const DROP_ABOVE = 110;
 
   const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
   let running = false;
 
-  // Anchors you recorded yourself, keyed by target. These win over the built-in
-  // anchor: the door marker is a decent guess, but only someone who has played
-  // the fight knows exactly where it should start.
+  // Landing spots you recorded yourself, which beat anything derived here.
   const overrides = new Map();
 
   function tellHost(action, key, pos) {
@@ -86,7 +66,34 @@
     return TARGETS.find((t) => t.key === key || t.layout === key);
   }
 
-  /** Wait until the requested layout is the running one. */
+  function firstInstance(name) {
+    const ot = PBP.runtime.objects[name];
+    if (!ot) return null;
+    return ot.getAllInstances()[0] || null;
+  }
+
+  /** The first of the target's candidate boss objects that exists. */
+  function findBoss(target) {
+    for (const name of target.boss || []) {
+      const inst = firstInstance(name);
+      if (inst) return inst;
+    }
+    return null;
+  }
+
+  /** The checkpoint nearest a position -- always survivable, the game respawns there. */
+  function nearestCheckpoint(from) {
+    const ot = PBP.runtime.objects.checkpoint;
+    if (!ot) return null;
+    let best = null;
+    let bestD = Infinity;
+    for (const c of ot.getAllInstances()) {
+      const d = Math.hypot(c.x - from.x, c.y - from.y);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    return best;
+  }
+
   async function waitForLayout(name, frames = 240) {
     for (let i = 0; i < frames; i++) {
       if (PBP.currentLayout() === name) return true;
@@ -95,15 +102,8 @@
     return false;
   }
 
-  /** Give the layout's own events a moment to create their instances. */
-  async function settle(frames = 60) {
+  async function settle(frames) {
     for (let i = 0; i < frames; i++) await nextFrame();
-  }
-
-  function firstInstance(name) {
-    const ot = PBP.runtime.objects[name];
-    if (!ot) return null;
-    return ot.getAllInstances()[0] || null;
   }
 
   async function to(key) {
@@ -121,44 +121,45 @@
         PBP.emit('warp:failed', { key: target.key, reason: `layout "${target.layout}" never started` });
         return false;
       }
-      await settle();
+      await settle(60);   // let the layout's events create their instances
 
-      if (target.globals) {
-        for (const [k, v] of Object.entries(target.globals)) {
-          try { rt.globalVars[k] = v; } catch (err) { PBP.warn(`could not set ${k}:`, err); }
+      let moved = null;
+      const player = firstInstance('Player');
+      const custom = overrides.get(target.key);
+
+      if (player && custom) {
+        player.x = custom.x;
+        player.y = custom.y;
+        await settle(30);
+        moved = [Math.round(player.x), Math.round(player.y)];
+      } else if (player && target.safeStart) {
+        // Arenas where dropping in beside the boss kills you outright -- a pit
+        // under the landing spot, or a section that starts you at 1 HP. Until
+        // someone records a real spot with Shift+F11, put them somewhere the
+        // level guarantees is survivable and let them walk the last stretch.
+        const cp = nearestCheckpoint(findBoss(target) || player);
+        if (cp) {
+          player.x = cp.x;
+          player.y = cp.y;
+          await settle(30);
+          moved = [Math.round(player.x), Math.round(player.y)];
+        }
+      } else if (player && target.boss) {
+        const boss = findBoss(target);
+        if (boss) {
+          player.x = boss.x + APPROACH_DX;
+          player.y = boss.y - DROP_ABOVE;
+          await settle(50);   // fall to the arena floor
+          moved = [Math.round(player.x), Math.round(player.y)];
+        } else {
+          PBP.warn(`warp ${target.key}: none of [${target.boss}] is on this layout`);
         }
       }
 
-      let moved = null;
-      const custom = overrides.get(target.key);
-      const player = firstInstance('Player');
-      if (custom && player) {
-        // A point you recorded yourself is exact -- you were standing on it.
-        player.x = custom.x;
-        player.y = custom.y;
-        await settle(20);
-        moved = [Math.round(player.x), Math.round(player.y)];
-      } else if (target.anchor) {
-        const anchor = firstInstance(target.anchor.object);
-        if (player && anchor) {
-          const cp = nearestCheckpoint(anchor);
-          if (cp) {
-            player.x = cp.x;
-            player.y = cp.y;
-          } else {
-            // No checkpoints on this layout (Chapter 6). Fall in from high
-            // above the marker and let gravity find the floor -- placing level
-            // with a marker buries you, because a marker's y is often below
-            // the ground it stands on.
-            player.x = anchor.x + (target.anchor.dx || 0);
-            player.y = anchor.y + (target.anchor.dy || 0) - DROP_HEIGHT;
-          }
-          await settle(50);   // let gravity finish
-          moved = [Math.round(player.x), Math.round(player.y)];
-        } else {
-          // Not fatal: the level is still loaded, just not at the boss.
-          PBP.warn(`warp ${target.key}: ${!player ? 'no Player' : 'no ' + target.anchor.object} to anchor to`);
-        }
+      // Arm the fight. The boss is already standing in its arena; this is the
+      // flag the skipped quest chain would otherwise have set.
+      if (target.boss) {
+        try { rt.globalVars.Boss_active = 1; } catch (err) { PBP.warn('could not set Boss_active:', err); }
       }
 
       PBP.emit('warp:done', { key: target.key, label: target.label, layout: target.layout, moved, note: target.note });
@@ -170,9 +171,8 @@
   }
 
   /**
-   * Record where you are standing as the warp point for whichever target
-   * belongs to the current layout. Stand where the fight should begin, press
-   * the key, and every later warp starts exactly there.
+   * Record where you are standing as the landing spot for whichever target
+   * belongs to the current layout, overriding the derived one for good.
    */
   function mark() {
     const layout = PBP.currentLayout();
@@ -185,7 +185,6 @@
     overrides.set(target.key, pos);
     tellHost('anchor', target.key, pos);
     PBP.emit('warp:marked', { key: target.key, label: target.label, pos: [pos.x, pos.y] });
-    PBP.log(`warp point for ${target.label} set to ${pos.x},${pos.y}`);
     return pos;
   }
 
@@ -201,7 +200,6 @@
     to,
     mark,
     clearMark,
-    /** Install recorded anchors restored from disk at startup. */
     adoptAnchors(map) {
       if (!map) return 0;
       let n = 0;

@@ -209,13 +209,27 @@ you at the boss, because the chapters differ in shape:
 
 | Target | Layout | How it works |
 | --- | --- | --- |
-| Ch1 – Vampire Girl | `1-VampireHouse` | checkpoint nearest the `Vampire` |
-| Ch2 – Clown | `Chapter 2 - Circus` | checkpoint nearest the boss door |
-| Ch3 – Triton | `Chapter 3 - Boss` | dedicated layout, lands in the arena |
+| Ch1 – BamBam | `1-VampireHouse` | **drops in beside the boss, fight starts** |
+| Ch2 – Clown | `Chapter 2 - Circus` | safe start; arena landing is a pit |
+| Ch3 – Triton | `Chapter 3 - Boss` | **dedicated arena, fight starts** |
 | Ch4 – Frank | `Chapter 4 - Boss` | rhythm sequence; no `Player` object by design |
-| Ch5 – Dracula | `Chapter 5 -Boss` | dedicated layout, lands in the arena |
-| Ch6 – Tin | `Chapter 6 - Snow` | no checkpoints; drops in above `Tin_Boss` |
-| Ch7 – Dawg Mascot | `Chapter 7 -final` | checkpoint nearest the boss door |
+| Ch5 – Dracula | `Chapter 5 -Boss` | **dedicated arena, fight starts** |
+| Ch6 – Tin | `Chapter 6 - Snow` | safe start; the section runs at 1 HP |
+| Ch7 – Dawg Mascot | `Chapter 7 -final` | safe start; arena landing is lethal |
+
+**Starting the fight.** Each layout carries its boss in a `Boss` family (plus a
+named object where the family does not reach), already instantiated in its
+arena from the moment the layout loads — Chapter 1's BamBam stands at
+(4264,368) before you ever get there. What is missing is `Boss_active`, so a
+warp lands the player beside the boss and sets it, which is exactly the flag
+the skipped quest chain would have set. For Chapter 1 that chain is: wake
+BamBam, hit the switch to flip the pink blocks, collect the bone, trade it to
+Pupperoni for the key, unlock the door. The warp replaces all of it.
+
+An earlier reading of this was wrong and worth recording: setting `Boss_active`
+appeared to "break" the game because health ticked down while the player stood
+still. That was not a broken state — that was the boss landing hits on an idle
+player. The fight had been working.
 
 **Where you land.** The first version aimed at the boss door marker and wedged
 the player inside walls on Chapters 1, 2 and 6. Two things were wrong, and both
@@ -230,11 +244,15 @@ are worth knowing before touching these offsets:
   above a room's top edge (on its roof) leaves the camera in the room you came
   from, showing scenery while you stand elsewhere.
 
-So targets now land on the **checkpoint nearest the boss**. Checkpoints are the
-one spot a layout guarantees is usable: the game respawns you there, so there
-is standing room, and they sit inside the room grid so the camera follows.
-Chapter 6 has no checkpoints and instead drops in from high above the boss and
-lets gravity find the floor.
+Chapters 1, 3 and 5 therefore drop the player in just left of the boss and let
+gravity find the arena floor — verified in the running game, fight and all.
+
+Chapters 2, 6 and 7 are **not solved**. Every landing tried next to those
+bosses is lethal: a pit under the floor on 2 and 7, and Chapter 6 runs the
+whole section at 1 HP so any contact ends it. Rather than warp you into a
+death, those three start at the nearest checkpoint with the fight already
+armed, and say so in the menu. Walking the last stretch is not the intent, and
+`Shift+F11` is the fix: stand where the fight should start and press it.
 
 Two tools keep this honest, both needing the game running with the tool
 attached:
