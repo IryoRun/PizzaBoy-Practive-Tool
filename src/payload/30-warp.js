@@ -47,8 +47,9 @@
 
     { key: 'ch5', label: 'Ch5 - Dracula', layout: 'Chapter 5 -Boss' },
 
+    // Left of Tin, facing him. Closer in (x >= 3040) he kills you on arrival.
     { key: 'ch6', label: 'Ch6 - Tin', layout: 'Chapter 6 - Snow',
-      landing: { x: 2896, y: 724 } },
+      landing: { x: 3000, y: 700 } },
 
     // This one was right in the first version and only broke when later
     // "improvements" were applied to it. Back to the original spot.
